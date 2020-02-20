@@ -23,6 +23,7 @@ class coinbase(object):
                                     on_open=self.on_open)
 
         self.dict_change = {}
+        self.last_date_hour = ''
 
         with open(r"C:\Users\yuan\PycharmProjects\evisx_copy\changes_coinbase_btc.csv",'w+',newline = '') as self.coinbase_btc_changes:
             self.writer = csv.writer(self.coinbase_btc_changes)
@@ -37,6 +38,7 @@ class coinbase(object):
         self.ws.on_open = self.on_open
         self.ws.run_forever(sslopt={"cert_reqs": ssl.CERT_NONE})
 
+
     def on_message(self, message):
         splited_mes = message[1:-1].split(',')
         if splited_mes[0] == '"type":"l2update"' and splited_mes[1] == '"product_id":"BTC-USD"':
@@ -44,28 +46,41 @@ class coinbase(object):
             info_list = message[54:-40].split(',')
             change = float(info_list[2].strip('"'))
             date_hour = message[-29:-16]
-            if date_hour not in self.dict_change:
-                self.dict_change[date_hour] = change
-                current_hour = int(date_hour[-2:])
-                if current_hour > 0:
+            if date_hour != self.last_date_hour and self.last_date_hour in self.dict_change:
+                with open(r"C:\Users\yuan\PycharmProjects\evisx_copy\changes_coinbase_btc.csv", 'a+',
+                          newline='') as self.coinbase_btc_changes:
+                    self.writer = csv.writer(self.coinbase_btc_changes)
+                    self.writer.writerow([self.dict_change[self.last_date_hour], self.last_date_hour])
+                self.last_date_hour = date_hour
+            elif date_hour != self.last_date_hour and self.last_date_hour not in self.dict_change:
+                self.last_date_hour = date_hour
 
-                    date_hour_to_write = date_hour[:-2]+str(int(date_hour[-2:])+1)
-                    with open(r"C:\Users\yuan\PycharmProjects\evisx_copy\changes_coinbase_btc.csv", 'a+',
-                                newline='') as self.coinbase_btc_changes:
-                        self.writer = csv.writer(self.coinbase_btc_changes)
-                        self.writer.writerow([self.dict_change[date_hour_to_write], date_hour_to_write])
-
-                elif current_hour == 0:
-                    date_hour_to_write = date_hour[:8]+str(int(date_hour[8:10])-1)+'T23'
-
-                    with open(r"C:\Users\yuan\PycharmProjects\evisx_copy\changes_coinbase_btc.csv", 'a+',
-                                newline='') as self.coinbase_btc_changes:
-                        self.writer = csv.writer(self.coinbase_btc_changes)
-                        self.writer.writerow([self.dict_change[date_hour_to_write], date_hour_to_write])
+            # if date_hour not in self.dict_change:
+            #     self.dict_change[date_hour] = change
+            #     current_hour = int(date_hour[-2:])
+            #     if current_hour > 0:
+            #
+            #         date_hour_to_write = date_hour[:-2]+str(int(date_hour[-2:])+1)
+            #         with open(r"C:\Users\yuan\PycharmProjects\evisx_copy\changes_coinbase_btc.csv", 'a+',
+            #                     newline='') as self.coinbase_btc_changes:
+            #             self.writer = csv.writer(self.coinbase_btc_changes)
+            #             self.writer.writerow([self.dict_change[date_hour_to_write], date_hour_to_write])
+            #
+            #     elif current_hour == 0:
+            #         date_hour_to_write = date_hour[:8]+str(int(date_hour[8:10])-1)+'T23'
+            #
+            #         with open(r"C:\Users\yuan\PycharmProjects\evisx_copy\changes_coinbase_btc.csv", 'a+',
+            #                     newline='') as self.coinbase_btc_changes:
+            #             self.writer = csv.writer(self.coinbase_btc_changes)
+            #             self.writer.writerow([self.dict_change[date_hour_to_write], date_hour_to_write])
 
 
             else:
-                self.dict_change[date_hour] += change
+                try:
+
+                    self.dict_change[date_hour] += change
+                except:
+                    self.dict_change[date_hour] = 0
 
         elif splited_mes[0] == '"type":"ticker"' and splited_mes[2] == '"product_id":"BTC-USD"':
             price = float((splited_mes[3].split(':'))[1].strip('"'))
