@@ -14,6 +14,7 @@ def ts_to_datetime(timestampms):
 
 class coinbase(object):
     def __init__(self):
+        #initialzing websocket and use dictionary to store change of the order book
         self.logon_msg = '{"type": "subscribe","product_ids": ["BTC-USD","ETH-USD"],"channels": ["level2","heartbeat","ticker"]}'
         websocket.enableTrace(True)
         self.ws = websocket.WebSocketApp("wss://ws-feed.pro.coinbase.com",
@@ -24,7 +25,7 @@ class coinbase(object):
 
         self.dict_change = {}
         self.last_date_hour = ''
-
+        #prepare csv for storing the data
         with open(r"C:\Users\yuan\PycharmProjects\evisx_copy\changes_coinbase_btc.csv",'w+',newline = '') as self.coinbase_btc_changes:
             self.writer = csv.writer(self.coinbase_btc_changes)
             self.writer.writerow(['change','date_hour'])
@@ -41,12 +42,14 @@ class coinbase(object):
 
     def on_message(self, message):
         splited_mes = message[1:-1].split(',')
+        #check if the data is trade data or order book changes
         if splited_mes[0] == '"type":"l2update"' and splited_mes[1] == '"product_id":"BTC-USD"':
 
             info_list = message[54:-40].split(',')
             change = float(info_list[2].strip('"'))
             date_hour = message[-29:-16]
             if date_hour != self.last_date_hour and self.last_date_hour in self.dict_change:
+                #write the change data with the correct datetime
                 with open(r"C:\Users\yuan\PycharmProjects\evisx_copy\changes_coinbase_btc.csv", 'a+',
                           newline='') as self.coinbase_btc_changes:
                     self.writer = csv.writer(self.coinbase_btc_changes)
@@ -55,34 +58,15 @@ class coinbase(object):
             elif date_hour != self.last_date_hour and self.last_date_hour not in self.dict_change:
                 self.last_date_hour = date_hour
 
-            # if date_hour not in self.dict_change:
-            #     self.dict_change[date_hour] = change
-            #     current_hour = int(date_hour[-2:])
-            #     if current_hour > 0:
-            #
-            #         date_hour_to_write = date_hour[:-2]+str(int(date_hour[-2:])+1)
-            #         with open(r"C:\Users\yuan\PycharmProjects\evisx_copy\changes_coinbase_btc.csv", 'a+',
-            #                     newline='') as self.coinbase_btc_changes:
-            #             self.writer = csv.writer(self.coinbase_btc_changes)
-            #             self.writer.writerow([self.dict_change[date_hour_to_write], date_hour_to_write])
-            #
-            #     elif current_hour == 0:
-            #         date_hour_to_write = date_hour[:8]+str(int(date_hour[8:10])-1)+'T23'
-            #
-            #         with open(r"C:\Users\yuan\PycharmProjects\evisx_copy\changes_coinbase_btc.csv", 'a+',
-            #                     newline='') as self.coinbase_btc_changes:
-            #             self.writer = csv.writer(self.coinbase_btc_changes)
-            #             self.writer.writerow([self.dict_change[date_hour_to_write], date_hour_to_write])
-
-
             else:
                 try:
-
+                    #if the datetime is in the dict and is the same hour, add the volume to the current one
                     self.dict_change[date_hour] += change
-                except:
+                except:#if there is no datetime in the dict, initialize the first entry
                     self.dict_change[date_hour] = 0
 
         elif splited_mes[0] == '"type":"ticker"' and splited_mes[2] == '"product_id":"BTC-USD"':
+            #if it is trade data of BTC-USD, write to the correct data set
             price = float((splited_mes[3].split(':'))[1].strip('"'))
             volumn = float((splited_mes[-1].split(':'))[1].strip('"'))
             date_hour = (splited_mes[-3])[8:21]
@@ -93,6 +77,8 @@ class coinbase(object):
                 self.writer2.writerow([date_hour,price,volumn])
 
         elif splited_mes[0] == '"type":"ticker"' and splited_mes[2] == '"product_id":"ETH-USD"':
+            #if it is trade data of ETH-USD, write to the correct data set
+            #this data set is not used since bthetc.py can handle the ETH-BTC data sucscription
             price = float((splited_mes[3].split(':'))[1].strip('"'))
             volumn = float((splited_mes[-1].split(':'))[1].strip('"'))
             date_hour = (splited_mes[-3])[8:21]
